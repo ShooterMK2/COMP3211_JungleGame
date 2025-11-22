@@ -1,4 +1,5 @@
 package Java.COMP3211_JungleGame.components;
+
 import Java.COMP3211_JungleGame.components.Animals.*;
 
 public class GameManager {
@@ -48,9 +49,12 @@ public class GameManager {
         }
     }
 
+    /**
+     * Execute a move without switching turns.
+     * Turn will be switched only when confirmTurn() is called.
+     */
     public void executeMove(Position from, Position to) {
         validateMove(from, to);
-
         Piece piece = board.getPieceAt(from);
         Piece capturedPiece = board.getPieceAt(to);
 
@@ -67,7 +71,14 @@ public class GameManager {
         gameRecord.recordMove(move);
 
         checkWinCondition();
+        // NOTE: Turn switching is now deferred to confirmTurn()
+    }
 
+    /**
+     * Confirm the current player's turn and switch to the next player.
+     * This should be called after the player confirms they don't want to undo.
+     */
+    public void confirmTurn() {
         if (!gameOver) {
             switchTurn();
         }
@@ -132,7 +143,6 @@ public class GameManager {
             if (board.isTrap(from, 1 - currentPlayerIndex)) {
                 return;
             }
-
             if (!piece.canCapture(targetPiece)) {
                 throw new IllegalArgumentException(piece.getName() + " (rank " + piece.getRank() +
                         ") cannot capture " + targetPiece.getName() + " (rank " + targetPiece.getRank() + ")");
@@ -146,11 +156,9 @@ public class GameManager {
         }
 
         boolean jumpingOverWater = false;
-
         if (from.getRow() == to.getRow()) {
             int minCol = Math.min(from.getColumn(), to.getColumn());
             int maxCol = Math.max(from.getColumn(), to.getColumn());
-
             for (int col = minCol + 1; col < maxCol; col++) {
                 Position middle = new Position(from.getRow(), col);
                 if (board.isWater(middle)) {
@@ -158,7 +166,6 @@ public class GameManager {
                     break;
                 }
             }
-
             if (jumpingOverWater && board.hasRatInWaterBetween(from, to)) {
                 throw new IllegalArgumentException(piece.getName() + " cannot jump - Rat blocking the water");
             }
@@ -167,7 +174,6 @@ public class GameManager {
         if (from.getColumn() == to.getColumn()) {
             int minRow = Math.min(from.getRow(), to.getRow());
             int maxRow = Math.max(from.getRow(), to.getRow());
-
             for (int row = minRow + 1; row < maxRow; row++) {
                 Position middle = new Position(row, from.getColumn());
                 if (board.isWater(middle)) {
@@ -175,7 +181,6 @@ public class GameManager {
                     break;
                 }
             }
-
             if (jumpingOverWater && board.hasRatInWaterBetween(from, to)) {
                 throw new IllegalArgumentException(piece.getName() + " cannot jump - Rat blocking the water");
             }
@@ -199,17 +204,20 @@ public class GameManager {
         return true;
     }
 
+    /**
+     * Undo the last move made by the current player.
+     * Does NOT switch turns since the turn hasn't been confirmed yet.
+     */
     public void undoMove() {
-        if (!gameRecord.canUndo()) {
+        if (!gameRecord.canUndo(currentPlayerIndex)) {
             if (gameRecord.getMoveCount() == 0) {
                 throw new IllegalStateException("No moves to undo");
             } else {
-                throw new IllegalStateException("Already undone this turn");
+                throw new IllegalStateException("You have already used all 3 undos");
             }
         }
 
-        Motions lastMove = gameRecord.undoLastMove();
-
+        Motions lastMove = gameRecord.undoLastMove(currentPlayerIndex);
         Piece piece = board.getPieceAt(lastMove.getTo());
         board.removePieceAt(lastMove.getTo());
         board.setPieceAt(lastMove.getFrom(), piece);
@@ -222,7 +230,7 @@ public class GameManager {
             capturedPiece.getOwner().addPiece(capturedPiece);
         }
 
-        switchTurn();
+        // NOTE: Turn is NOT switched here because it was never switched in executeMove()
         gameOver = false;
         winner = null;
     }
@@ -287,4 +295,3 @@ public class GameManager {
         this.currentPlayerIndex = playerIndex;
     }
 }
-

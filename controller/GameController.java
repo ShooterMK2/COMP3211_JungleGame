@@ -18,6 +18,7 @@ public class GameController {
     public void run() {
         ui.displayWelcomeMessage();
         boolean exitProgram = false;
+
         while (!exitProgram) {
             String menuChoice = ui.showMainMenu();
             switch (menuChoice.toLowerCase()) {
@@ -60,14 +61,17 @@ public class GameController {
             ui.displayError("No saved games found.");
             return;
         }
+
         ui.displayMessage("\nSaved games:");
         for (int i = 0; i < savedGames.size(); i++) {
             ui.displayMessage((i + 1) + ". " + savedGames.get(i));
         }
+
         String filename = ui.requestInput("Enter filename to load (or 'cancel'): ");
         if (filename.equalsIgnoreCase("cancel")) {
             return;
         }
+
         gameManager = fileManager.loadGame(filename);
         if (gameManager != null) {
             ui.displayMessage("Game loaded successfully!");
@@ -83,19 +87,23 @@ public class GameController {
             ui.displayError("No game records found.");
             return;
         }
+
         ui.displayMessage("\nAvailable records:");
         for (int i = 0; i < records.size(); i++) {
             ui.displayMessage((i + 1) + ". " + records.get(i));
         }
+
         String filename = ui.requestInput("Enter filename to replay (or 'cancel'): ");
         if (filename.equalsIgnoreCase("cancel")) {
             return;
         }
+
         java.util.List<String> moves = fileManager.loadRecord(filename);
         if (moves.isEmpty()) {
             ui.displayError("Failed to load record or record is empty.");
             return;
         }
+
         ui.displayMessage("\nReplaying game...");
         ui.displayMessage("Press Enter after each move to continue.");
         for (String moveData : moves) {
@@ -109,12 +117,14 @@ public class GameController {
         gameRunning = true;
 
         while (gameRunning && !gameManager.isGameOver()) {
-            // Display board at START of each turn only
+            int currentPlayerID = gameManager.getCurrentPlayerIndex();
             ui.displayBoard(gameManager.getBoard(), gameManager.getPlayer(0), gameManager.getPlayer(1));
             ui.displayGameStatus(
                     gameManager.getCurrentPlayer().getName(),
+                    currentPlayerID,
                     gameManager.getGameRecord().getMoveCount(),
-                    gameManager.getGameRecord().getRemainingUndos()
+                    gameManager.getGameRecord().getPlayer0UndoCount(),
+                    gameManager.getGameRecord().getPlayer1UndoCount()
             );
 
             // Keep asking for valid command until turn ends
@@ -128,6 +138,7 @@ public class GameController {
         if (gameManager.isGameOver()) {
             ui.displayBoard(gameManager.getBoard(), gameManager.getPlayer(0), gameManager.getPlayer(1));
             ui.displayWinner(gameManager.getWinner());
+
             String saveRecord = ui.requestInput("Save game record? (yes/no): ");
             if (saveRecord.equalsIgnoreCase("yes") || saveRecord.equalsIgnoreCase("y")) {
                 String filename = ui.requestInput("Enter filename: ");
@@ -138,14 +149,9 @@ public class GameController {
                 }
             }
         }
-
         gameRunning = false;
     }
 
-    /**
-     * Processes user commands.
-     * Returns true if turn should end (move confirmed), false otherwise.
-     */
     private boolean processCommand(String command) {
         command = command.trim().toLowerCase();
 
@@ -188,10 +194,6 @@ public class GameController {
         }
     }
 
-    /**
-     * Executes a move and handles confirmation/undo.
-     * Returns true if turn ends (confirmed), false if undone.
-     */
     private boolean executeMove(Position from, Position to) {
         try {
             gameManager.executeMove(from, to);
@@ -219,34 +221,36 @@ public class GameController {
     }
 
     /**
-     * Asks player to confirm or undo the move.
-     * Returns true if confirmed (end turn), false if undone (stay in turn).
+     * Ask the player to confirm their move or undo.
+     * Returns true if the turn should end (move confirmed), false otherwise (undone or still deciding).
      */
     private boolean confirmMoveOrUndo() {
         while (true) {
-            int remaining = gameManager.getGameRecord().getRemainingUndos();
-            String prompt = String.format("Need Undo? (y/n - %d remaining for entire game): ", remaining);
+            // Now we can use currentPlayerIndex directly since turn hasn't switched yet
+            int currentPlayer = gameManager.getCurrentPlayerIndex();
+            int remaining = gameManager.getGameRecord().getRemainingUndos(currentPlayer);
+            String prompt = String.format("Confirm move? (y to confirm, n to undo - %d undos remaining): ", remaining);
             String response = ui.requestInput(prompt).trim().toLowerCase();
 
-            if (response.equals("n") || response.equals("no") || response.isEmpty()) {
-                // Confirmed - turn ends
-                return true;
-            } else if (response.equals("y") || response.equals("yes")) {
+            if (response.equals("y") || response.equals("yes")) {
+                // Confirm move - NOW switch turns
+                gameManager.confirmTurn();
+                return true; // Turn ended
+            } else if (response.equals("n") || response.equals("no")) {
                 try {
                     gameManager.undoMove();
                     ui.displaySuccess("Move undone! Try again. (" +
-                            gameManager.getGameRecord().getRemainingUndos() + " undos remaining for entire game)");
+                            gameManager.getGameRecord().getRemainingUndos(currentPlayer) + " undos remaining)");
                     ui.displayBoard(gameManager.getBoard(), gameManager.getPlayer(0), gameManager.getPlayer(1));
-                    return false;
+                    return false; // Turn not ended, try again
                 } catch (IllegalStateException e) {
                     ui.displayError(e.getMessage());
                     ui.displayMessage("Move confirmed automatically.");
-                    // No undos left - turn ends
+                    gameManager.confirmTurn();
                     return true;
                 }
             } else {
-                ui.displayError("Invalid input. Type 'y' for undo or 'n' to confirm.");
-                // Invalid input - stay in confirmation loop
+                ui.displayError("Invalid input. Type 'y' to confirm or 'n' to undo.");
             }
         }
     }
@@ -265,11 +269,13 @@ public class GameController {
         if (posStr.length() < 2) {
             throw new IllegalArgumentException("Position must be in format: A0-G8");
         }
+
         char columnChar = posStr.charAt(0);
         int column = columnChar - 'A';
         if (column < 0 || column > 6) {
             throw new IllegalArgumentException("Column must be A-G, got: " + columnChar);
         }
+
         String rowStr = posStr.substring(1);
         int row;
         try {
@@ -277,9 +283,11 @@ public class GameController {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Row must be a number 0-8, got: " + rowStr);
         }
+
         if (row < 0 || row > 8) {
             throw new IllegalArgumentException("Row must be 0-8, got: " + row);
         }
+
         return new Position(row, column);
     }
 }

@@ -6,12 +6,14 @@ import java.util.Stack;
 
 public class GameRecorder {
     private final Stack<Motions> moveHistory;
-    private int totalUndoCount;
-    private static final int MAX_UNDO_TOTAL = 3;
+    private int player0UndoCount;  // Separate counter for Player 0
+    private int player1UndoCount;  // Separate counter for Player 1
+    private static final int MAX_UNDO_PER_PLAYER = 3;
 
     public GameRecorder() {
         this.moveHistory = new Stack<>();
-        this.totalUndoCount = 0;
+        this.player0UndoCount = 0;
+        this.player1UndoCount = 0;
     }
 
     public void recordMove(Motions move) {
@@ -25,40 +27,57 @@ public class GameRecorder {
         return moveHistory.peek();
     }
 
-    public Motions undoLastMove() {
-        if (!canUndo()) {
-            throw new IllegalStateException(getUndoMessage());
+    public Motions undoLastMove(int currentPlayerIndex) {
+        if (!canUndo(currentPlayerIndex)) {
+            throw new IllegalStateException(getUndoMessage(currentPlayerIndex));
         }
+
         Motions move = moveHistory.pop();
-        totalUndoCount++;
+
+        // Increment undo count for the current player
+        if (currentPlayerIndex == 0) {
+            player0UndoCount++;
+        } else {
+            player1UndoCount++;
+        }
+
         return move;
     }
 
-    public boolean canUndo() {
-        return !moveHistory.isEmpty() && totalUndoCount < MAX_UNDO_TOTAL;
+    public boolean canUndo(int currentPlayerIndex) {
+        if (moveHistory.isEmpty()) {
+            return false;
+        }
+
+        int playerUndoCount = (currentPlayerIndex == 0) ? player0UndoCount : player1UndoCount;
+        return playerUndoCount < MAX_UNDO_PER_PLAYER;
     }
 
-    public int getRemainingUndos() {
-        return MAX_UNDO_TOTAL - totalUndoCount;
+    public int getRemainingUndos(int playerIndex) {
+        int playerUndoCount = (playerIndex == 0) ? player0UndoCount : player1UndoCount;
+        return MAX_UNDO_PER_PLAYER - playerUndoCount;
+    }
+
+    public int getPlayer0UndoCount() {
+        return player0UndoCount;
+    }
+
+    public int getPlayer1UndoCount() {
+        return player1UndoCount;
     }
 
     public List<Motions> getAllMoves() {
         return new ArrayList<>(moveHistory);
     }
 
-    public void clear() {
-        moveHistory.clear();
-        totalUndoCount = 0;
-    }
-
     public int getMoveCount() {
         return moveHistory.size();
     }
 
-    private String getUndoMessage() {
+    private String getUndoMessage(int playerIndex) {
         if (moveHistory.isEmpty()) {
             return "No moves to undo";
         }
-        return "Maximum 3 undos per game reached";
+        return "Maximum " + MAX_UNDO_PER_PLAYER + " undos per player reached";
     }
 }
