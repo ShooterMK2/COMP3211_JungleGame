@@ -42,10 +42,6 @@ public class Motions {
         return playerIndex;
     }
 
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
     @Override
     public String toString() {
         String moveStr = movedPiece.getName() + " from " + from + " to " + to;
