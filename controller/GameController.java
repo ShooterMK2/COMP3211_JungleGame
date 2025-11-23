@@ -173,8 +173,7 @@ public class GameController {
             }
             default -> {
                 try {
-                    String cleanCommand = command.replace("move", "").replace("to", "").trim();
-                    String[] parts = cleanCommand.split("\\s+");
+                    String[] parts = command.split("\\s+");
                     if (parts.length >= 2) {
                         Position from = parsePosition(parts[0]);
                         Position to = parsePosition(parts[1]);

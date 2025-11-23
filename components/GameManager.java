@@ -49,10 +49,6 @@ public class GameManager {
         }
     }
 
-    /**
-     * Execute a move without switching turns.
-     * Turn will be switched only when confirmTurn() is called.
-     */
     public void executeMove(Position from, Position to) {
         validateMove(from, to);
         Piece piece = board.getPieceAt(from);
@@ -74,10 +70,6 @@ public class GameManager {
         // NOTE: Turn switching is now deferred to confirmTurn()
     }
 
-    /**
-     * Confirm the current player's turn and switch to the next player.
-     * This should be called after the player confirms they don't want to undo.
-     */
     public void confirmTurn() {
         if (!gameOver) {
             switchTurn();

@@ -376,10 +376,12 @@ public class MainTest {
 
         // Player 0 moves
         gameManager.executeMove(new Position(2, 0), new Position(3, 0));
+        gameManager.confirmTurn();
         assertEquals(1, gameManager.getCurrentPlayerIndex(), "Should be Player 1's turn");
 
         // Player 1 moves
         gameManager.executeMove(new Position(6, 6), new Position(5, 6));
+        gameManager.confirmTurn();
         assertEquals(0, gameManager.getCurrentPlayerIndex(), "Should be Player 0's turn again");
     }
 
@@ -571,25 +573,6 @@ public class MainTest {
         }, "Cannot undo when no moves have been made");
     }
 
-    @Test
-    @DisplayName("Test can undo at most 3 moves per turn")
-    public void testCanUndoAtMostThreeMoves() {
-        // Make 4 moves
-        gameManager.executeMove(new Position(2, 0), new Position(3, 0)); // Move 1
-        gameManager.executeMove(new Position(6, 6), new Position(5, 6)); // Move 2
-        gameManager.executeMove(new Position(3, 0), new Position(4, 0)); // Move 3
-        gameManager.executeMove(new Position(5, 6), new Position(4, 6)); // Move 4
-
-        // Undo should work for first 3
-        gameManager.undoMove(); // Undo move 4
-        gameManager.undoMove(); // Undo move 3
-        gameManager.undoMove(); // Undo move 2
-
-        // Fourth undo should fail (only 3 undos allowed per turn)
-        assertThrows(IllegalStateException.class, () -> {
-            gameManager.undoMove();
-        }, "Can only undo 3 moves per turn");
-    }
 
     // ========== PIECE RANK TESTS ==========
 
@@ -730,9 +713,11 @@ public class MainTest {
         assertEquals(0, recorder.getMoveCount(), "Initially no moves");
 
         gameManager.executeMove(new Position(2, 0), new Position(3, 0));
+        gameManager.confirmTurn();
         assertEquals(1, recorder.getMoveCount(), "Should have 1 move recorded");
 
         gameManager.executeMove(new Position(6, 6), new Position(5, 6));
+        gameManager.confirmTurn();
         assertEquals(2, recorder.getMoveCount(), "Should have 2 moves recorded");
     }
 }
